@@ -21,6 +21,11 @@
 esp_now_peer_info_t peerInfo;
 // MAC Address of responder - edit as required
 uint8_t screenAddress[] = {0x24, 0x6F, 0x28, 0xD1, 0x9A, 0xBC};
+uint8_t sword1Address[] = {0x24, 0x6F, 0x28, 0xD1, 0x9A, 0x9C};
+// uint8_t sword2Address[] = {0xE8, 0x68, 0xE7, 0x22, 0xB6, 0xB8};
+uint8_t sword2Address[] = {0x24, 0x6F, 0x28, 0xD1, 0xF2, 0x34};
+
+/* --------------------------------- Players -------------------------------- */
 // Define a data structure
 typedef struct struct_message {
   uint8_t swordNumber;
@@ -46,7 +51,7 @@ void resetPlayer(struct_player *player) {
   player->health = INNIT_HEALTH;
 }
 
-// game loop
+/* -------------------------------- game loop ------------------------------- */
 typedef struct struct_game {
   uint8_t gameStage;    // 0: waiting, 1: playing, 2: wined
   uint8_t playerNumber; // 1: player1, 2: player2, 0: default
@@ -77,8 +82,7 @@ void nextStage(struct_game *game) {
 void sendGameLoop() {
   gameLoop.player1health = player1.health;
   gameLoop.player2health = player2.health;
-  esp_err_t result =
-      esp_now_send(screenAddress, (uint8_t *)&gameLoop, sizeof(gameLoop));
+  esp_err_t result = esp_now_send(0, (uint8_t *)&gameLoop, sizeof(gameLoop));
   if (result == ESP_OK) {
     Serial.println("Game loop sent successfully");
   } else {
@@ -102,6 +106,7 @@ void endGame() {
   sendGameLoop();
 }
 
+/* -------------------------------- button --------------------------------- */
 struct Button {
   const uint8_t PIN;
   uint32_t numberKeyPresses;
@@ -109,6 +114,8 @@ struct Button {
 };
 
 ezButton button(BUTTON_PIN);
+
+/* -------------------------------- main code ------------------------------- */
 
 // Callback function executed when data is received
 void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
@@ -135,21 +142,21 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       opponent_player->health -= HIT_DAMAGE;
       Serial.println("Hit!");
       gameLoop.action = 2;
-      if (opponent_player->health == 0) {
-        endGame();
-      }
     }
     // block
     else {
       Serial.println("Blocked!");
       gameLoop.action = 1;
     }
-    gameLoop.playerNumber = myData.swordNumber == 1 ? 2 : 1;
-    sendGameLoop();
+    if (opponent_player->health == 0) {
+      endGame();
+    } else {
+      gameLoop.playerNumber = myData.swordNumber == 1 ? 2 : 1;
+      sendGameLoop();
+    }
   }
 }
 
-/* -------------------------------- main code ------------------------------- */
 void setup() {
   // Set up Serial Monitor
   Serial.begin(9600);
@@ -165,12 +172,28 @@ void setup() {
   // Register callback function
   esp_now_register_recv_cb(OnDataRecv);
 
-  // Register peer
+  // Register peer screen
   memcpy(peerInfo.peer_addr, screenAddress, 6);
   peerInfo.channel = 0;
   peerInfo.encrypt = false;
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+    Serial.println("Failed to add peer");
+    return;
+  }
 
-  // Add peer
+  // Register peer sword 1
+  memcpy(peerInfo.peer_addr, sword1Address, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
+  if (esp_now_add_peer(&peerInfo) != ESP_OK) {
+    Serial.println("Failed to add peer");
+    return;
+  }
+
+  // Register peer sword 2
+  memcpy(peerInfo.peer_addr, sword2Address, 6);
+  peerInfo.channel = 0;
+  peerInfo.encrypt = false;
   if (esp_now_add_peer(&peerInfo) != ESP_OK) {
     Serial.println("Failed to add peer");
     return;

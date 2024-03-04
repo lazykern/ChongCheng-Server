@@ -15,7 +15,7 @@
 #define BUTTON_PIN 23
 #define DEBOUNCE_TIME 50
 #define INNIT_HEALTH 100
-#define HIT_DAMAGE 10
+#define HIT_DAMAGE 5
 
 // Peer info
 esp_now_peer_info_t peerInfo;
@@ -132,6 +132,7 @@ void OnDataRecv(const uint8_t *mac, const uint8_t *incomingData, int len) {
       myData.swordNumber == 1 ? &player2 : &player1;
   // blocking or unblocking
   if (myData.action != 1) {
+    Serial.println("Block!");
     sender_player->action = myData.action;
     sender_player->direction = myData.direction;
   }
